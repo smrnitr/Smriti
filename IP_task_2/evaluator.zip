@@ -1,3 +1,224 @@
 version https://git-lfs.github.com/spec/v1
 oid sha256:2596951f9064b9123c4b256c36df8517c278753a829244a76e7a9cd8e2861dc5
 size 144711968
+
+import cv2 as cv
+import numpy as np
+
+image_path='CYBORG_Robotics_Tasks/IP_TASK/Task_2/test_images/maze_0.png'
+image=cv.imread(image_path)
+
+temp=image.copy()
+temp[250:,:]=[255,255,255]
+
+
+medicine_packages_present=[]
+# Convert the image from BGR to HSV color space
+hsv_image = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+gray_image=cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+temp_hsv=cv.cvtColor(temp, cv.COLOR_BGR2HSV)
+
+# Apply thresholding
+_, thresh = cv.threshold(gray_image, 50, 255, cv.THRESH_BINARY_INV)
+
+
+def detect_arena_parameters(hsv_image,Traffic_signals,start_node,horizontal_roads_under_construction,vertical_roads_under_construction,medicine_packages_present):
+  # Define the range for red color in HSV space
+  lower_red1 = np.array([0, 100, 100])
+  upper_red1 = np.array([10, 255, 255])
+    
+  # Create a mask for red color
+  red_mask = cv.inRange(hsv_image, lower_red1, upper_red1)
+    
+  # Define the range for red color in HSV space
+  lower_green1 = np.array([35, 100, 100])
+  upper_green1 = np.array([85, 255, 255])
+    
+  # Create a mask for red color
+  green_mask = cv.inRange(hsv_image, lower_green1, upper_green1)
+
+  rows, cols = 7, 7  # Grid size
+  height, width = image.shape[:2]
+
+    
+  cell_height, cell_width = (height) // (rows), (width)// (cols)
+
+  # Alphabet labels for columns
+  col_labels = ['A', 'B', 'C', 'D', 'E', 'F','G']
+    
+  # Iterate over each cell in the grid
+  for row in range(rows):
+    for col in range(cols):
+      # Calculate the boundaries of the current cell
+      x_start = col * cell_width
+      y_start = row * cell_height
+      x_end = x_start + cell_width
+      y_end = y_start + cell_height
+
+      # Extract the cell from the mask
+      cell_mask_r = red_mask[y_start:y_end, x_start:x_end]
+        
+      # Find red contours in the cell
+      contours_red, _ = cv.findContours(cell_mask_r, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+      red_points=[]
+      red_points.append(contours_red)
+            
+      for item in red_points:
+        if contours_red==():    
+          continue  
+        else:
+          label = f"{col_labels[col]}{row + 1}"        
+          Traffic_signals.append(label)
+          
+      cell_mask_g = green_mask[y_start:y_end, x_start:x_end]     
+      # Find green contours in the cell
+      contours_green, _ = cv.findContours(cell_mask_g, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+
+      green_points=[]
+      green_points.append(contours_green)
+
+      for item in green_points:
+        if contours_green==():      
+          continue
+        else:            
+          x,y,w,h=cv.boundingRect(contours_green[0])
+          if cv.contourArea(contours_green[0])<150:
+            # Label the detected red parts
+            label = f"{col_labels[col]}{row + 1}"         
+            start_node.append(label)
+  
+
+  for i in range(150,651,100):
+     for j in range(100,701,100):
+        if list(image[j,i])==[255,255,255]:
+          horizontal_roads_under_construction.append(f"{chr(64+((i-50)//100))}{(j)//100} - {chr(64+((i+50)//100))}{(j)//100}")
+  
+  
+  for i in range(100,701,100):
+     for j in range(150,651,100):
+        if list(image[j,i])==[255,255,255]:
+          vertical_roads_under_construction.append(f"{chr(64+((i)//100))}{(j-50)//100} - {chr(64+((i)//100))}{(j+50)//100}")
+
+    
+  lower_orange = np.array([5, 100, 100])
+  upper_orange = np.array([15, 255, 255])
+  orange_mask=cv.inRange(temp_hsv,lower_orange,upper_orange)
+  contours_orange, _ = cv.findContours(orange_mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+
+  lower_skyblue = np.array([90, 50, 50])
+  upper_skyblue = np.array([100, 255, 255])
+  skyblue_mask = cv.inRange(temp_hsv, lower_skyblue, upper_skyblue)
+  contours_skyblue, _ = cv.findContours(skyblue_mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+
+  lower_pink = np.array([130, 100, 100])
+  upper_pink = np.array([180, 255, 255])
+  pink_mask=cv.inRange(temp_hsv,lower_pink,upper_pink)
+  contours_pink, _ = cv.findContours(pink_mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+
+  lower_green1 = np.array([35, 100, 100])
+  upper_green1 = np.array([85, 255, 255])
+  g_mask = cv.inRange(temp_hsv, lower_green1, upper_green1)
+  contours_g, _ = cv.findContours(g_mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+  
+  
+
+  for contour in contours_g:
+    x,y,w,h = cv.boundingRect(contour)
+    Shop_no=f'Shop_{int(x-100)//100+1}'
+    Color='Green'
+    approximate=cv.approxPolyDP(contour,1,True)
+
+    if len(approximate)==3:
+      coordinates=[int(x+w/2),int(y+h*(2/3))]
+    else:
+      coordinates=[int(x+w/2),int(y+h/2)]
+
+    if len(approximate)==4:
+      Shape='Square'
+    elif len(approximate)==3:
+      Shape='Triangle'
+    else:
+      Shape='Circle'
+
+    medical_packages=[Shop_no,Color,Shape,coordinates]
+    medicine_packages_present.append(medical_packages)
+    
+            
+  for contour in contours_orange:
+    x,y,w,h = cv.boundingRect(contour)
+    Shop_no=f'Shop_{int(x-100)//100+1}'
+    Color='Orange'
+    approximate=cv.approxPolyDP(contour,1,True)
+
+    if len(approximate)==3:
+      coordinates=[int(x+w/2),int(y+h*(2/3))]
+    else:
+      coordinates=[int(x+w/2),int(y+h/2)]
+
+    if len(approximate)==4:
+      Shape='Square'
+    elif len(approximate)==3:
+      Shape='Triangle'
+    else:
+      Shape='Circle'
+
+    medical_packages=[Shop_no,Color,Shape,coordinates]
+    medicine_packages_present.append(medical_packages)
+    
+  
+  for contour in contours_pink:
+    x,y,w,h = cv.boundingRect(contour)
+    Shop_no=f'Shop_{int(x-100)//100+1}'
+    Color='Pink'
+    approximate=cv.approxPolyDP(contour,1,True)
+
+    if len(approximate)==3:
+      coordinates=[int(x+w/2),int(y+h*(2/3))]
+    else:
+      coordinates=[int(x+w/2),int(y+h/2)]
+
+    if len(approximate)==4:
+      Shape='Square'
+    elif len(approximate)==3:
+      Shape='Triangle'
+    else:
+      Shape='Circle'
+
+    medical_packages=[Shop_no,Color,Shape,coordinates]
+    medicine_packages_present.append(medical_packages)
+    
+  
+  for contour in contours_skyblue:
+    x,y,w,h = cv.boundingRect(contour)
+    Shop_no=f'Shop_{int(x-100)//100+1}'
+    Color='Skyblue'
+    approximate=cv.approxPolyDP(contour,1,True)
+
+    if len(approximate)==3:
+      coordinates=[int(x+w/2),int(y+h*(2/3))]
+    else:
+      coordinates=[int(x+w/2),int(y+h/2)]
+
+    if len(approximate)==4:
+      Shape='Square'
+    elif len(approximate)==3:
+      Shape='Triangle'
+    else:
+      Shape='Circle'
+
+    medical_packages=[Shop_no,Color,Shape,coordinates]
+    medicine_packages_present.append(medical_packages)
+
+
+arena_parameters={'Traffic_signals':[],'start_node':[],'horizontal_roads_under_constuction':[],'vertical_roads_under_construction':[],'medicine_packages_present':[]}
+Traffic_signals=arena_parameters.get('Traffic_signals')
+start_node=arena_parameters.get('start_node')
+horizontal_roads_under_construction=arena_parameters.get('horizontal_roads_under_constuction')
+vertical_roads_under_construction=arena_parameters.get('vertical_roads_under_construction')
+medicine_packages_present=arena_parameters.get('medicine_packages_present')
+
+detect_arena_parameters(hsv_image,Traffic_signals,start_node,horizontal_roads_under_construction,vertical_roads_under_construction,medicine_packages_present)
+
+print('Arena Parameters:',arena_parameters)
+    
+       
